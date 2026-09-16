@@ -24,8 +24,19 @@ python3 scripts/task/generate_reminders.py --today 2026-09-16
 
 Omit `--today` to use today's UTC date. `--tasks` selects another JSON file, and `--output report.txt` writes the message to a file instead of stdout. Add `--max-characters 2000` to preview the Discord-sized report. Run the task tests with `python3 -m unittest discover -s tests -v`.
 
-## Delivery configuration
+## GitHub Actions setup
 
-Set the repository Actions variable `TASK_REMINDERS_PROVIDER` to `discord` (the default) or `slack`. Add the matching repository secret `TASK_REMINDERS_DISCORD_WEBHOOK_URL` or `TASK_REMINDERS_SLACK_WEBHOOK_URL`. The destination channel comes from the incoming webhook you create in Discord or Slack. Set the optional `TASK_REMINDERS_DATA_PATH` variable to use a different JSON task file. The workflow passes the selected secret to its delivery step as `WEBHOOK_URL`; Python never receives it.
+Create an **incoming webhook** in the Discord or Slack channel that should receive reports, then copy its full URL. Configure these settings in the GitHub repository under **Settings → Secrets and variables → Actions** ([secrets guide](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets), [variables guide](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-variables)):
 
-Edit `schedule.cron` in the workflow to change its run time. GitHub Actions reads the generated message file, builds the selected provider's JSON payload with `jq`, and posts it with `curl`. A missing provider secret or unsupported provider setting fails the workflow with a clear error. No webhook URL belongs in the repository. GitHub repository webhooks send repository events; this report uses a Discord or Slack incoming webhook so it can send the generated task text.
+| Name | GitHub setting | When needed | Value |
+| --- | --- | --- | --- |
+| `TASK_REMINDERS_PROVIDER` | Variable | Optional | `discord` or `slack`; defaults to `discord` |
+| `TASK_REMINDERS_DATA_PATH` | Variable | Optional | Repository-relative JSON path; defaults to `data/task/tasks.json` |
+| `TASK_REMINDERS_DISCORD_WEBHOOK_URL` | Secret | Required for Discord | Full Discord incoming webhook URL |
+| `TASK_REMINDERS_SLACK_WEBHOOK_URL` | Secret | Required for Slack | Full Slack incoming webhook URL |
+
+For Discord, the default provider already applies: create `TASK_REMINDERS_DISCORD_WEBHOOK_URL` under the **Secrets** tab using **New repository secret**. For Slack, create `TASK_REMINDERS_SLACK_WEBHOOK_URL` as a secret and add `TASK_REMINDERS_PROVIDER=slack` under the **Variables** tab using **New repository variable**. Set `TASK_REMINDERS_DATA_PATH` only if the task JSON lives somewhere else. The unused provider's secret is not required. Store webhook URLs only as secrets, never in JSON, an `.env` file, or the workflow source.
+
+GitHub Actions turns these repository settings into temporary step environment variables. `REMINDER_PROVIDER` selects the delivery step, `TASK_DATA_PATH` tells the generator which JSON file to read, and `WEBHOOK_URL` is supplied only to the selected Discord or Slack delivery step. These three names and GitHub's built-in `RUNNER_TEMP` do **not** need to be created in repository Settings. Python receives the task path and message limit as command-line arguments; it never receives a webhook URL. No local environment variables or credentials are needed to preview a report or run its tests.
+
+After the workflow is on the default branch, open **Actions → Task reminders → Run workflow** for a [manual delivery test](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow). This run posts to the configured channel. The scheduled run uses `17 9 * * *` (09:17 UTC each day); edit `schedule.cron` in the workflow to change it. GitHub Actions builds the provider's JSON payload with `jq` and posts it with `curl`. A missing selected secret or unsupported provider setting fails the workflow with a clear error. GitHub repository webhooks send repository events; this report uses a Discord or Slack incoming webhook so it can send the generated task text.

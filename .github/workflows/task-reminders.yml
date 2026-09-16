@@ -2,7 +2,7 @@ name: Task reminders
 
 on:
   schedule:
-    - cron: '17 9 * * *' # Daily at 09:17 UTC; edit this cron to change the schedule.
+    - cron: '55 9 * * *' # Daily at 09:17 UTC; edit this cron to change the schedule.
   workflow_dispatch:
 
 permissions:

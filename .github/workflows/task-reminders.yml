@@ -18,11 +18,11 @@ jobs:
           python-version: '3.13'
       - name: Generate reminder message
         env:
-          TASK_DATA_PATH: ${{ vars.TASK_DATA_PATH || 'tasks.json' }}
-        run: python scripts/generate_reminders.py --tasks "$TASK_DATA_PATH" --output "$RUNNER_TEMP/task-reminder.txt"
+          TASK_DATA_PATH: ${{ vars.TASK_REMINDERS_DATA_PATH || vars.TASK_DATA_PATH || 'data/task_reminders/tasks.json' }}
+        run: python scripts/task_reminders/generate_reminders.py --tasks "$TASK_DATA_PATH" --output "$RUNNER_TEMP/task-reminder.txt"
       - name: Send reminder message
         env:
-          NOTIFICATION_PROVIDER: ${{ vars.NOTIFICATION_PROVIDER || 'discord' }}
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: python scripts/send_notification.py "$RUNNER_TEMP/task-reminder.txt"
+          NOTIFICATION_PROVIDER: ${{ vars.TASK_REMINDERS_PROVIDER || vars.NOTIFICATION_PROVIDER || 'discord' }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.TASK_REMINDERS_DISCORD_WEBHOOK_URL || secrets.DISCORD_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.TASK_REMINDERS_SLACK_WEBHOOK_URL || secrets.SLACK_WEBHOOK_URL }}
+        run: python scripts/task_reminders/send_notification.py "$RUNNER_TEMP/task-reminder.txt"

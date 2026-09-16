@@ -4,7 +4,7 @@ import unittest
 from datetime import date
 from pathlib import Path
 
-from scripts.generate_reminders import generate_message, read_active_tasks
+from scripts.task_reminders.generate_reminders import generate_message, read_active_tasks
 
 
 class ReminderTests(unittest.TestCase):

@@ -1,0 +1,28 @@
+name: Task reminders
+
+on:
+  schedule:
+    - cron: '17 9 * * *' # Daily at 09:17 UTC; edit this cron to change the schedule.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  send-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Generate reminder message
+        env:
+          TASK_DATA_PATH: ${{ vars.TASK_DATA_PATH || 'tasks.json' }}
+        run: python scripts/generate_reminders.py --tasks "$TASK_DATA_PATH" --output "$RUNNER_TEMP/task-reminder.txt"
+      - name: Send reminder message
+        env:
+          NOTIFICATION_PROVIDER: ${{ vars.NOTIFICATION_PROVIDER || 'discord' }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: python scripts/send_notification.py "$RUNNER_TEMP/task-reminder.txt"

@@ -1,0 +1,28 @@
+{
+  "tasks": [
+    {
+      "id": "task-001",
+      "task": "Project submission",
+      "date": "2026-09-20",
+      "status": "active"
+    },
+    {
+      "id": "task-002",
+      "task": "Product launch",
+      "date": "2026-10-15",
+      "status": "active"
+    },
+    {
+      "id": "task-003",
+      "task": "Annual review",
+      "date": "2027-01-15",
+      "status": "active"
+    },
+    {
+      "id": "task-004",
+      "task": "Completed preparation",
+      "date": "2026-09-18",
+      "status": "completed"
+    }
+  ]
+}

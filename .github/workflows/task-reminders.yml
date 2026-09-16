@@ -2,7 +2,7 @@ name: Task reminders
 
 on:
   schedule:
-    - cron: '48 13 * * *'
+    - cron: '50 13 * * *'
   workflow_dispatch:
 
 permissions:

@@ -14,16 +14,18 @@ The generator uses the current UTC date unless `--today` is supplied. It sorts a
 
 The one-month boundary uses the same day next month, clamped to that month's last day; for example, January 31 maps to February 28 in a non-leap year. Upcoming months are rounded from days divided by 30.44. The report omits empty categories and says `No active tasks.` if none qualify. Each listed task includes its name, remaining-time label, and ISO due date.
 
+The generator accepts `--max-characters` for destinations with a message limit. If a report exceeds that limit, it removes the farthest Upcoming tasks first and states how many were omitted. It always keeps Urgent and Beware tasks; if those and the omission note cannot fit, generation fails rather than silently dropping them. The workflow passes the 2,000-character limit for Discord. Slack uses the full report.
+
 To preview the report from the repository root without sending it:
 
 ```sh
 python3 scripts/task/generate_reminders.py --today 2026-09-16
 ```
 
-Omit `--today` to use today's UTC date. `--tasks` selects another JSON file, and `--output report.txt` writes the message to a file instead of stdout. Run the task tests with `python3 -m unittest discover -s tests -v`.
+Omit `--today` to use today's UTC date. `--tasks` selects another JSON file, and `--output report.txt` writes the message to a file instead of stdout. Add `--max-characters 2000` to preview the Discord-sized report. Run the task tests with `python3 -m unittest discover -s tests -v`.
 
 ## Delivery configuration
 
-Set the repository Actions variable `TASK_REMINDERS_PROVIDER` to `discord` (the default) or `slack`. Add the matching repository secret `TASK_REMINDERS_DISCORD_WEBHOOK_URL` or `TASK_REMINDERS_SLACK_WEBHOOK_URL`. The destination channel comes from the webhook you create in Discord or Slack. Set the optional `TASK_REMINDERS_DATA_PATH` variable to use a different JSON task file. The older generic names `NOTIFICATION_PROVIDER`, `TASK_DATA_PATH`, `DISCORD_WEBHOOK_URL`, and `SLACK_WEBHOOK_URL` remain supported as fallbacks.
+Set the repository Actions variable `TASK_REMINDERS_PROVIDER` to `discord` (the default) or `slack`. Add the matching repository secret `TASK_REMINDERS_DISCORD_WEBHOOK_URL` or `TASK_REMINDERS_SLACK_WEBHOOK_URL`. The destination channel comes from the incoming webhook you create in Discord or Slack. Set the optional `TASK_REMINDERS_DATA_PATH` variable to use a different JSON task file. The workflow passes the selected secret to its delivery step as `WEBHOOK_URL`; Python never receives it.
 
-Edit `schedule.cron` in the workflow to change its run time. GitHub Actions reads the generated message file, builds the selected provider's JSON payload with `jq`, and posts it with `curl`. The Discord step rejects a report over 2,000 characters. A missing provider secret or unsupported provider setting fails the workflow with a clear error. No webhook URL belongs in the repository.
+Edit `schedule.cron` in the workflow to change its run time. GitHub Actions reads the generated message file, builds the selected provider's JSON payload with `jq`, and posts it with `curl`. A missing provider secret or unsupported provider setting fails the workflow with a clear error. No webhook URL belongs in the repository. GitHub repository webhooks send repository events; this report uses a Discord or Slack incoming webhook so it can send the generated task text.

@@ -12,50 +12,50 @@ jobs:
   send-reminders:
     runs-on: ubuntu-latest
     env:
-      REMINDER_PROVIDER: ${{ vars.TASK_REMINDERS_PROVIDER || vars.NOTIFICATION_PROVIDER || 'discord' }}
+      REMINDER_PROVIDER: ${{ vars.TASK_REMINDERS_PROVIDER || 'discord' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
-      - name: Generate reminder message
-        env:
-          TASK_DATA_PATH: ${{ vars.TASK_REMINDERS_DATA_PATH || vars.TASK_DATA_PATH || 'data/task/tasks.json' }}
-        run: python scripts/task/generate_reminders.py --tasks "$TASK_DATA_PATH" --output "$RUNNER_TEMP/task-reminder.txt"
       - name: Validate notification provider
         run: |
           case "$REMINDER_PROVIDER" in
             discord|slack) ;;
             *) echo "TASK_REMINDERS_PROVIDER must be discord or slack" >&2; exit 1 ;;
           esac
+      - name: Generate reminder message
+        env:
+          TASK_DATA_PATH: ${{ vars.TASK_REMINDERS_DATA_PATH || 'data/task/tasks.json' }}
+        run: |
+          args=(--tasks "$TASK_DATA_PATH" --output "$RUNNER_TEMP/task-reminder.txt")
+          if [[ "$REMINDER_PROVIDER" == discord ]]; then
+            args+=(--max-characters 2000)
+          fi
+          python scripts/task/generate_reminders.py "${args[@]}"
       - name: Send reminder to Discord
         if: ${{ env.REMINDER_PROVIDER == 'discord' }}
         env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.TASK_REMINDERS_DISCORD_WEBHOOK_URL || secrets.DISCORD_WEBHOOK_URL }}
+          WEBHOOK_URL: ${{ secrets.TASK_REMINDERS_DISCORD_WEBHOOK_URL }}
         run: |
           set -euo pipefail
-          if [[ -z "$DISCORD_WEBHOOK_URL" ]]; then
+          if [[ -z "$WEBHOOK_URL" ]]; then
             echo "Missing TASK_REMINDERS_DISCORD_WEBHOOK_URL secret" >&2
-            exit 1
-          fi
-          message_chars=$(jq -Rs 'rtrimstr("\n") | length' "$RUNNER_TEMP/task-reminder.txt")
-          if (( message_chars > 2000 )); then
-            echo "Discord limits message content to 2000 characters" >&2
             exit 1
           fi
           jq -Rs '{content: rtrimstr("\n"), allowed_mentions: {parse: []}}' "$RUNNER_TEMP/task-reminder.txt" |
             curl --fail --silent --show-error --output /dev/null \
-              --header 'Content-Type: application/json' --data-binary @- "$DISCORD_WEBHOOK_URL"
+              --header 'Content-Type: application/json' --data-binary @- "$WEBHOOK_URL"
       - name: Send reminder to Slack
         if: ${{ env.REMINDER_PROVIDER == 'slack' }}
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.TASK_REMINDERS_SLACK_WEBHOOK_URL || secrets.SLACK_WEBHOOK_URL }}
+          WEBHOOK_URL: ${{ secrets.TASK_REMINDERS_SLACK_WEBHOOK_URL }}
         run: |
           set -euo pipefail
-          if [[ -z "$SLACK_WEBHOOK_URL" ]]; then
+          if [[ -z "$WEBHOOK_URL" ]]; then
             echo "Missing TASK_REMINDERS_SLACK_WEBHOOK_URL secret" >&2
             exit 1
           fi
           jq -Rs '{text: rtrimstr("\n")}' "$RUNNER_TEMP/task-reminder.txt" |
             curl --fail --silent --show-error --output /dev/null \
-              --header 'Content-Type: application/json' --data-binary @- "$SLACK_WEBHOOK_URL"
+              --header 'Content-Type: application/json' --data-binary @- "$WEBHOOK_URL"

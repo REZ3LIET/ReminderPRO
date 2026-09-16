@@ -40,6 +40,31 @@ class ReminderTests(unittest.TestCase):
     def test_empty_active_tasks_has_clear_report(self):
         self.assertEqual(generate_message([], date(2026, 9, 16)), "📋 Task Status\n\nNo active tasks.")
 
+    def test_character_limit_omits_farthest_upcoming_first(self):
+        today = date(2026, 9, 16)
+        tasks = [
+            (date(2026, 9, 20), "Urgent review"),
+            (date(2026, 10, 10), "Beware launch"),
+            (date(2026, 11, 1), "Nearest upcoming"),
+            (date(2027, 1, 1), "Middle upcoming"),
+            (date(2027, 6, 1), "Farthest upcoming event with a long name"),
+        ]
+        full_message = generate_message(tasks, today)
+        limit = len(full_message) - 1
+        message = generate_message(tasks, today, max_characters=limit)
+        self.assertLessEqual(len(message), limit)
+        self.assertIn("Urgent review", message)
+        self.assertIn("Beware launch", message)
+        self.assertIn("Nearest upcoming", message)
+        self.assertNotIn("Farthest upcoming", message)
+        self.assertIn("1 upcoming task omitted", message)
+        self.assertIn("Farthest upcoming", full_message)
+
+    def test_limit_does_not_drop_urgent_or_beware_tasks(self):
+        tasks = [(date(2026, 9, 20), "Urgent review"), (date(2026, 10, 10), "Beware launch")]
+        with self.assertRaisesRegex(ValueError, "after omitting all Upcoming tasks"):
+            generate_message(tasks, date(2026, 9, 16), max_characters=20)
+
 
 if __name__ == "__main__":
     unittest.main()

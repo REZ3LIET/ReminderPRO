@@ -83,7 +83,7 @@ def generate_message(tasks: list[tuple[date, str]], today: date) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--tasks", type=Path, default=Path("data/task_reminders/tasks.json"))
+    parser.add_argument("--tasks", type=Path, default=Path("data/task/tasks.json"))
     parser.add_argument("--today", type=date.fromisoformat, default=datetime.now(timezone.utc).date())
     parser.add_argument("--output", type=Path, help="Write the message to a file instead of stdout")
     args = parser.parse_args()

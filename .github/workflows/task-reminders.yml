@@ -11,6 +11,8 @@ permissions:
 jobs:
   send-reminders:
     runs-on: ubuntu-latest
+    env:
+      REMINDER_PROVIDER: ${{ vars.TASK_REMINDERS_PROVIDER || vars.NOTIFICATION_PROVIDER || 'discord' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -20,9 +22,40 @@ jobs:
         env:
           TASK_DATA_PATH: ${{ vars.TASK_REMINDERS_DATA_PATH || vars.TASK_DATA_PATH || 'data/task_reminders/tasks.json' }}
         run: python scripts/task_reminders/generate_reminders.py --tasks "$TASK_DATA_PATH" --output "$RUNNER_TEMP/task-reminder.txt"
-      - name: Send reminder message
+      - name: Validate notification provider
+        run: |
+          case "$REMINDER_PROVIDER" in
+            discord|slack) ;;
+            *) echo "TASK_REMINDERS_PROVIDER must be discord or slack" >&2; exit 1 ;;
+          esac
+      - name: Send reminder to Discord
+        if: ${{ env.REMINDER_PROVIDER == 'discord' }}
         env:
-          NOTIFICATION_PROVIDER: ${{ vars.TASK_REMINDERS_PROVIDER || vars.NOTIFICATION_PROVIDER || 'discord' }}
           DISCORD_WEBHOOK_URL: ${{ secrets.TASK_REMINDERS_DISCORD_WEBHOOK_URL || secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$DISCORD_WEBHOOK_URL" ]]; then
+            echo "Missing TASK_REMINDERS_DISCORD_WEBHOOK_URL secret" >&2
+            exit 1
+          fi
+          message_chars=$(jq -Rs 'rtrimstr("\n") | length' "$RUNNER_TEMP/task-reminder.txt")
+          if (( message_chars > 2000 )); then
+            echo "Discord limits message content to 2000 characters" >&2
+            exit 1
+          fi
+          jq -Rs '{content: rtrimstr("\n"), allowed_mentions: {parse: []}}' "$RUNNER_TEMP/task-reminder.txt" |
+            curl --fail --silent --show-error --output /dev/null \
+              --header 'Content-Type: application/json' --data-binary @- "$DISCORD_WEBHOOK_URL"
+      - name: Send reminder to Slack
+        if: ${{ env.REMINDER_PROVIDER == 'slack' }}
+        env:
           SLACK_WEBHOOK_URL: ${{ secrets.TASK_REMINDERS_SLACK_WEBHOOK_URL || secrets.SLACK_WEBHOOK_URL }}
-        run: python scripts/task_reminders/send_notification.py "$RUNNER_TEMP/task-reminder.txt"
+        run: |
+          set -euo pipefail
+          if [[ -z "$SLACK_WEBHOOK_URL" ]]; then
+            echo "Missing TASK_REMINDERS_SLACK_WEBHOOK_URL secret" >&2
+            exit 1
+          fi
+          jq -Rs '{text: rtrimstr("\n")}' "$RUNNER_TEMP/task-reminder.txt" |
+            curl --fail --silent --show-error --output /dev/null \
+              --header 'Content-Type: application/json' --data-binary @- "$SLACK_WEBHOOK_URL"

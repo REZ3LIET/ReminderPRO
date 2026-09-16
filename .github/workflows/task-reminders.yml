@@ -2,7 +2,7 @@ name: Task reminders
 
 on:
   schedule:
-    - cron: '57 9 * * *'
+    - cron: '*/5 * * * *'
       timezone: "America/New_York"
   workflow_dispatch:
 
